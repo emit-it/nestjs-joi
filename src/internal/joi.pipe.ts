@@ -2,24 +2,19 @@
 
 import {
   ArgumentMetadata,
-  BadRequestException,
   Inject,
   Injectable,
   Optional,
   PipeTransform,
   Scope,
+  UnprocessableEntityException,
 } from '@nestjs/common';
 import { REQUEST } from '@nestjs/core';
 import * as Joi from 'joi';
 import { getTypeSchema, JoiValidationGroup } from 'joi-class-decorators';
 import { SetRequired } from 'type-fest';
 
-import {
-  Constructor,
-  JOIPIPE_OPTIONS,
-  JoiPipeValidationException,
-  JoiValidationGroups,
-} from './defs';
+import { Constructor, JOIPIPE_OPTIONS, JoiValidationGroups } from './defs';
 
 export interface JoiPipeOptions {
   group?: JoiValidationGroup;
@@ -103,7 +98,7 @@ export class JoiPipe implements PipeTransform {
       return payload;
     }
 
-    return JoiPipe.validate(payload, schema, this.pipeOpts.usePipeValidationException, metadata);
+    return JoiPipe.validate(payload, schema /* metadata */);
   }
 
   // Called "validate" and NOT "transform", because that would make it match
@@ -112,9 +107,8 @@ export class JoiPipe implements PipeTransform {
   private static validate<T>(
     payload: unknown,
     schema: Joi.Schema,
-    usePipeValidationException: boolean,
     /* istanbul ignore next */
-    metadata: ArgumentMetadata = { type: 'custom' },
+    // metadata: ArgumentMetadata = { type: 'custom' },
   ): T {
     const { error, value } = schema.validate(
       payload,
@@ -126,19 +120,17 @@ export class JoiPipe implements PipeTransform {
     if (error) {
       // Fixes #4
       if (Joi.isError(error)) {
-        // Provide a special response with reasons
-        const reasons = error.details
-          .map((detail: { message: string }) => detail.message)
-          .join(', ');
-        const message =
-          `Request validation of ${metadata.type} ` +
-          (metadata.data ? `item '${metadata.data}' ` : '') +
-          `failed, because: ${reasons}`;
-        if (usePipeValidationException) {
-          throw new JoiPipeValidationException(message);
-        } else {
-          throw new BadRequestException(message);
-        }
+        throw new UnprocessableEntityException({
+          statusCode: 422,
+          message: 'Validation failed',
+          error: error.details.map(errorItem => {
+            return {
+              message: errorItem.message,
+              key: errorItem.context?.key,
+              value: errorItem.context?.value,
+            };
+          }),
+        });
       } else {
         // If error is not a validation error, it is probably a custom error thrown by the schema.
         // Pass it through to allow it to be caught by custom error handlers.

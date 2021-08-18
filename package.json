@@ -10,7 +10,7 @@
     "test:api": "NODE_ENV=testing jest -c .jest-api.json --watchAll",
     "test:api:debug": "NODE_ENV=testing node --inspect-brk=0.0.0.0:9229 -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest -c .jest-api.json --runInBand",
     "test:api:once": "NODE_ENV=testing jest -c .jest-api.json",
-    "clean": "rm -rf dist/",
+    "clean": "rimraf dist",
     "compile": "npm run clean && echo Compiling... && tsc -p .",
     "compile:dist": "npm run clean && echo Compiling... && tsc -p tsconfig.dist.json",
     "check": "eslint -c .eslintrc.fix.json '{src,test}/**/*.{ts,js}'",
@@ -27,9 +27,9 @@
     "type": "git",
     "url": "https://github.com/whefter/nestjs-joi"
   },
-  "main": "index.js",
-  "types": "index.d.ts",
-  "typings": "index.d.ts",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "typings": "dist/index.d.ts",
   "dependencies": {
     "joi-class-decorators": "^1.0.2"
   },
@@ -59,11 +59,12 @@
     "husky": "^4.3.0",
     "jest": "^26.4.2",
     "jest-junit": "^10.0.0",
-    "joi": "^17.2.1",
+    "joi": "^17.4.2",
     "lint-staged": "^11.0.0",
     "lodash": "^4.17.21",
     "prettier": "^2.1.2",
     "reflect-metadata": "^0.1.13",
+    "rimraf": "^3.0.2",
     "sinon": "^9.1.0",
     "source-map-support": "^0.5.19",
     "supertest": "^5.0.0",
@@ -75,9 +76,9 @@
     "typescript": "~4.0.3"
   },
   "peerDependencies": {
-    "@nestjs/common": "^7.0.0",
-    "@nestjs/core": "^7.0.0",
-    "joi": "^17.2.1"
+    "@nestjs/common": "^8.0.0",
+    "@nestjs/core": "^8.0.0",
+    "joi": "^17.4.2"
   },
   "engines": {
     "node": ">= 10.13.0"
