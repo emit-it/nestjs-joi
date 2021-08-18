@@ -28,9 +28,6 @@ const DEFAULT_JOI_OPTS = {
     abortEarly: false,
     allowUnknown: false,
     stripUnknown: true,
-    errors: {
-        render: false,
-    },
 };
 function isHttpRequest(req) {
     return req && 'method' in req;
@@ -81,9 +78,10 @@ let JoiPipe = JoiPipe_1 = class JoiPipe {
                         var _a, _b, _c;
                         return {
                             message: errorItem.message,
+                            type: errorItem.type,
                             key: (_a = errorItem.context) === null || _a === void 0 ? void 0 : _a.key,
-                            value: (_b = errorItem.context) === null || _b === void 0 ? void 0 : _b.value,
-                            label: (_c = errorItem.context) === null || _c === void 0 ? void 0 : _c.label,
+                            label: (_b = errorItem.context) === null || _b === void 0 ? void 0 : _b.label,
+                            value: (_c = errorItem.context) === null || _c === void 0 ? void 0 : _c.value,
                         };
                     }),
                 });
