@@ -31,9 +31,6 @@ const DEFAULT_JOI_OPTS: Joi.ValidationOptions = {
   abortEarly: false,
   allowUnknown: false,
   stripUnknown: true,
-  errors: {
-    render: false,
-  },
 };
 
 // TODO Check if there is a more efficient/reliable test for generic request objects
@@ -130,9 +127,10 @@ export class JoiPipe implements PipeTransform {
           error: error.details.map(errorItem => {
             return {
               message: errorItem.message,
+              type: errorItem.type,
               key: errorItem.context?.key,
-              value: errorItem.context?.value,
               label: errorItem.context?.label,
+              value: errorItem.context?.value,
             };
           }),
         });
