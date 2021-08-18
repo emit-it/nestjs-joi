@@ -26,7 +26,11 @@ const DEFAULT_JOI_PIPE_OPTS = {
 const JOI_PIPE_OPTS_KEYS = Object.keys(DEFAULT_JOI_PIPE_OPTS);
 const DEFAULT_JOI_OPTS = {
     abortEarly: false,
-    allowUnknown: true,
+    allowUnknown: false,
+    stripUnknown: true,
+    errors: {
+        render: false,
+    },
 };
 function isHttpRequest(req) {
     return req && 'method' in req;
@@ -73,14 +77,15 @@ let JoiPipe = JoiPipe_1 = class JoiPipe {
                 throw new common_1.UnprocessableEntityException({
                     statusCode: 422,
                     message: 'Validation failed',
-                    error: error.details.map((errorItem) => {
-                        var _a, _b;
+                    error: error.details.map(errorItem => {
+                        var _a, _b, _c;
                         return {
                             message: errorItem.message,
                             key: (_a = errorItem.context) === null || _a === void 0 ? void 0 : _a.key,
                             value: (_b = errorItem.context) === null || _b === void 0 ? void 0 : _b.value,
+                            label: (_c = errorItem.context) === null || _c === void 0 ? void 0 : _c.label,
                         };
-                    })
+                    }),
                 });
             }
             else {

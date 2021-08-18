@@ -29,7 +29,11 @@ const JOI_PIPE_OPTS_KEYS = Object.keys(DEFAULT_JOI_PIPE_OPTS);
 
 const DEFAULT_JOI_OPTS: Joi.ValidationOptions = {
   abortEarly: false,
-  allowUnknown: true,
+  allowUnknown: false,
+  stripUnknown: true,
+  errors: {
+    render: false,
+  },
 };
 
 // TODO Check if there is a more efficient/reliable test for generic request objects
@@ -128,6 +132,7 @@ export class JoiPipe implements PipeTransform {
               message: errorItem.message,
               key: errorItem.context?.key,
               value: errorItem.context?.value,
+              label: errorItem.context?.label,
             };
           }),
         });
