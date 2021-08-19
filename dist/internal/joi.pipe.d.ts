@@ -1,7 +1,7 @@
 import { ArgumentMetadata, PipeTransform } from '@nestjs/common';
 import * as Joi from 'joi';
-import { JoiPipeOptions } from './joi-pipe.module';
 import { Constructor } from './defs';
+import { JoiPipeOptions } from './joi-pipe.module';
 export declare class JoiPipe implements PipeTransform {
     private readonly arg?;
     private readonly schema?;

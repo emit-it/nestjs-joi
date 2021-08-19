@@ -16,9 +16,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.JoiPipe = void 0;
 const common_1 = require("@nestjs/common");
 const core_1 = require("@nestjs/core");
+const acceptLanguageParser = require("accept-language-parser");
 const Joi = require("joi");
 const joi_class_decorators_1 = require("joi-class-decorators");
-const acceptLanguageParser = require("accept-language-parser");
 const defs_1 = require("./defs");
 const DEFAULT_JOI_PIPE_OPTS = {
     pipeOpts: {
@@ -33,7 +33,7 @@ const DEFAULT_JOI_PIPE_OPTS = {
         },
     },
     message: 'Validation failed',
-    transformErrors: (errorItems) => {
+    transformErrors: errorItems => {
         var _a, _b, _c, _d, _e, _f, _g;
         const errorObjects = {};
         for (const errorItem of errorItems) {
@@ -48,10 +48,12 @@ const DEFAULT_JOI_PIPE_OPTS = {
                 continue;
             }
             errorObjects[key] = {};
-            errorObjects[key].messages = [{
+            errorObjects[key].messages = [
+                {
                     message: errorItem.message,
                     type: errorItem.type,
-                }];
+                },
+            ];
             errorObjects[key].key = (_e = errorItem.context) === null || _e === void 0 ? void 0 : _e.key;
             errorObjects[key].label = (_f = errorItem.context) === null || _f === void 0 ? void 0 : _f.label;
             errorObjects[key].value = (_g = errorItem.context) === null || _g === void 0 ? void 0 : _g.value;
@@ -104,14 +106,15 @@ let JoiPipe = JoiPipe_1 = class JoiPipe {
     validate(payload, schema, language) {
         var _a, _b, _c, _d, _e;
         const { error, value } = schema.validate(payload, Object.assign(Object.assign(Object.assign(Object.assign({}, DEFAULT_JOI_VALIDATION_OPTS), this.options.validationOpts), {
-            errors: Object.assign(Object.assign(Object.assign({}, DEFAULT_JOI_VALIDATION_OPTS.errors), { language }), (_a = this.options.validationOpts) === null || _a === void 0 ? void 0 : _a.errors)
+            errors: Object.assign(Object.assign(Object.assign({}, DEFAULT_JOI_VALIDATION_OPTS.errors), { language }), (_a = this.options.validationOpts) === null || _a === void 0 ? void 0 : _a.errors),
         }), { messages: (_b = this.options.translations) === null || _b === void 0 ? void 0 : _b[language] }));
         if (error) {
             if (Joi.isError(error)) {
                 const errObject = {
                     statusCode: 422,
                     message: this.options.message,
-                    errors: ((_d = (_c = this.options).transformErrors) === null || _d === void 0 ? void 0 : _d.call(_c, error.details)) || ((_e = DEFAULT_JOI_PIPE_OPTS.transformErrors) === null || _e === void 0 ? void 0 : _e.call(DEFAULT_JOI_PIPE_OPTS, error.details)),
+                    errors: ((_d = (_c = this.options).transformErrors) === null || _d === void 0 ? void 0 : _d.call(_c, error.details)) ||
+                        ((_e = DEFAULT_JOI_PIPE_OPTS.transformErrors) === null || _e === void 0 ? void 0 : _e.call(DEFAULT_JOI_PIPE_OPTS, error.details)),
                 };
                 throw new common_1.UnprocessableEntityException(errObject);
             }
@@ -154,7 +157,10 @@ let JoiPipe = JoiPipe_1 = class JoiPipe {
             return this.schema;
         }
         if (this.type) {
-            return JoiPipe_1.getTypeSchema(this.type, { forced: true, group: (_a = this.options.pipeOpts) === null || _a === void 0 ? void 0 : _a.group });
+            return JoiPipe_1.getTypeSchema(this.type, {
+                forced: true,
+                group: (_a = this.options.pipeOpts) === null || _a === void 0 ? void 0 : _a.group,
+            });
         }
         if (metadata.metatype) {
             return JoiPipe_1.getTypeSchema(metadata.metatype, { group: (_b = this.options.pipeOpts) === null || _b === void 0 ? void 0 : _b.group });
