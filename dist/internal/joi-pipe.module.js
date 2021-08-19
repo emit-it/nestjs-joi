@@ -20,12 +20,10 @@ let JoiPipeModule = JoiPipeModule_1 = class JoiPipeModule {
                 useClass: joi_pipe_1.JoiPipe,
             },
         ];
-        if (options.pipeOpts) {
-            providers.push({
-                provide: defs_1.JOIPIPE_OPTIONS,
-                useValue: options.pipeOpts,
-            });
-        }
+        providers.push({
+            provide: defs_1.JOIPIPE_OPTIONS,
+            useValue: options,
+        });
         return {
             module: JoiPipeModule_1,
             global: true,

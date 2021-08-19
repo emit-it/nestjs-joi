@@ -18,17 +18,49 @@ const common_1 = require("@nestjs/common");
 const core_1 = require("@nestjs/core");
 const Joi = require("joi");
 const joi_class_decorators_1 = require("joi-class-decorators");
+const acceptLanguageParser = require("accept-language-parser");
 const defs_1 = require("./defs");
 const DEFAULT_JOI_PIPE_OPTS = {
-    group: undefined,
-    usePipeValidationException: false,
+    pipeOpts: {
+        group: undefined,
+    },
+    validationOpts: {
+        abortEarly: false,
+        allowUnknown: false,
+        stripUnknown: false,
+        errors: {
+            label: undefined,
+        },
+    },
+    message: 'Validation failed',
+    transformErrors: (errorItems) => {
+        var _a, _b, _c, _d, _e, _f, _g;
+        const errorObjects = {};
+        for (const errorItem of errorItems) {
+            if (!((_a = errorItem.context) === null || _a === void 0 ? void 0 : _a.key) || !((_b = errorItem.context) === null || _b === void 0 ? void 0 : _b.label)) {
+            }
+            const key = ((_c = errorItem.context) === null || _c === void 0 ? void 0 : _c.label) || ((_d = errorItem.context) === null || _d === void 0 ? void 0 : _d.key) || '_no-key';
+            if (errorObjects[key] && errorObjects[key].messages) {
+                errorObjects[key].messages.push({
+                    message: errorItem.message,
+                    type: errorItem.type,
+                });
+                continue;
+            }
+            errorObjects[key] = {};
+            errorObjects[key].messages = [{
+                    message: errorItem.message,
+                    type: errorItem.type,
+                }];
+            errorObjects[key].key = (_e = errorItem.context) === null || _e === void 0 ? void 0 : _e.key;
+            errorObjects[key].label = (_f = errorItem.context) === null || _f === void 0 ? void 0 : _f.label;
+            errorObjects[key].value = (_g = errorItem.context) === null || _g === void 0 ? void 0 : _g.value;
+        }
+        return errorObjects;
+    },
 };
-const JOI_PIPE_OPTS_KEYS = Object.keys(DEFAULT_JOI_PIPE_OPTS);
-const DEFAULT_JOI_OPTS = {
-    abortEarly: false,
-    allowUnknown: false,
-    stripUnknown: true,
-};
+const JOI_PIPE_OPTS_KEYS = Object.keys(Object.assign(Object.assign({}, DEFAULT_JOI_PIPE_OPTS), { translations: {} }));
+const DEFAULT_JOI_VALIDATION_OPTS = DEFAULT_JOI_PIPE_OPTS.validationOpts;
 function isHttpRequest(req) {
     return req && 'method' in req;
 }
@@ -36,7 +68,7 @@ function isGraphQlRequest(req) {
     return req && 'req' in req && typeof req.req === 'object' && 'method' in req.req;
 }
 let JoiPipe = JoiPipe_1 = class JoiPipe {
-    constructor(arg, pipeOpts) {
+    constructor(arg, options) {
         this.arg = arg;
         if (arg) {
             if (isHttpRequest(arg)) {
@@ -52,39 +84,36 @@ let JoiPipe = JoiPipe_1 = class JoiPipe {
                     this.type = arg;
                 }
                 else {
-                    pipeOpts = arg;
+                    options = arg;
                 }
             }
         }
         else {
         }
-        this.pipeOpts = this.parseOptions(pipeOpts);
+        this.options = this.parseOptions(options);
     }
     transform(payload, metadata) {
+        const req = this.arg;
+        const language = acceptLanguageParser.parse(req.headers['accept-language'] || 'en')[0].code;
         const schema = this.getSchema(metadata);
         if (!schema) {
             return payload;
         }
-        return JoiPipe_1.validate(payload, schema);
+        return this.validate(payload, schema, language);
     }
-    static validate(payload, schema) {
-        const { error, value } = schema.validate(payload, DEFAULT_JOI_OPTS);
+    validate(payload, schema, language) {
+        var _a, _b, _c, _d, _e;
+        const { error, value } = schema.validate(payload, Object.assign(Object.assign(Object.assign(Object.assign({}, DEFAULT_JOI_VALIDATION_OPTS), this.options.validationOpts), {
+            errors: Object.assign(Object.assign(Object.assign({}, DEFAULT_JOI_VALIDATION_OPTS.errors), { language }), (_a = this.options.validationOpts) === null || _a === void 0 ? void 0 : _a.errors)
+        }), { messages: (_b = this.options.translations) === null || _b === void 0 ? void 0 : _b[language] }));
         if (error) {
             if (Joi.isError(error)) {
-                throw new common_1.UnprocessableEntityException({
+                const errObject = {
                     statusCode: 422,
-                    message: 'Validation failed',
-                    error: error.details.map(errorItem => {
-                        var _a, _b, _c;
-                        return {
-                            message: errorItem.message,
-                            type: errorItem.type,
-                            key: (_a = errorItem.context) === null || _a === void 0 ? void 0 : _a.key,
-                            label: (_b = errorItem.context) === null || _b === void 0 ? void 0 : _b.label,
-                            value: (_c = errorItem.context) === null || _c === void 0 ? void 0 : _c.value,
-                        };
-                    }),
-                });
+                    message: this.options.message,
+                    errors: ((_d = (_c = this.options).transformErrors) === null || _d === void 0 ? void 0 : _d.call(_c, error.details)) || ((_e = DEFAULT_JOI_PIPE_OPTS.transformErrors) === null || _e === void 0 ? void 0 : _e.call(DEFAULT_JOI_PIPE_OPTS, error.details)),
+                };
+                throw new common_1.UnprocessableEntityException(errObject);
             }
             else {
                 throw error;
@@ -92,27 +121,25 @@ let JoiPipe = JoiPipe_1 = class JoiPipe {
         }
         return value;
     }
-    parseOptions(pipeOpts) {
-        pipeOpts = Object.assign(Object.assign({}, DEFAULT_JOI_PIPE_OPTS), pipeOpts || {});
+    parseOptions(options) {
+        var _a, _b, _c;
+        options = Object.assign(Object.assign({}, DEFAULT_JOI_PIPE_OPTS), options || {});
         const errors = [];
-        const unknownKeys = Object.keys(pipeOpts).filter(k => !JOI_PIPE_OPTS_KEYS.includes(k));
+        const unknownKeys = Object.keys(options).filter(k => !JOI_PIPE_OPTS_KEYS.includes(k));
         if (unknownKeys.length) {
             errors.push(`Unknown configuration keys: ${unknownKeys.join(', ')}`);
         }
-        if (pipeOpts.group &&
-            !(typeof pipeOpts.group === 'string' || typeof pipeOpts.group === 'symbol')) {
+        if (((_a = options.pipeOpts) === null || _a === void 0 ? void 0 : _a.group) &&
+            !(typeof ((_b = options.pipeOpts) === null || _b === void 0 ? void 0 : _b.group) === 'string' || typeof ((_c = options.pipeOpts) === null || _c === void 0 ? void 0 : _c.group) === 'symbol')) {
             errors.push(`'group' must be a string or symbol`);
-        }
-        if (Object.prototype.hasOwnProperty.call(pipeOpts, 'usePipeValidationException') &&
-            !(typeof pipeOpts.usePipeValidationException === 'boolean')) {
-            errors.push(`'usePipeValidationException' must be a boolean`);
         }
         if (errors.length) {
             throw new Error(`Invalid JoiPipeOptions:\n${errors.map(x => `- ${x}`).join('\n')}`);
         }
-        return pipeOpts;
+        return options;
     }
     getSchema(metadata) {
+        var _a, _b;
         if (this.method && metadata.metatype) {
             let group;
             if (this.method === 'PUT' || this.method === 'PATCH') {
@@ -127,10 +154,10 @@ let JoiPipe = JoiPipe_1 = class JoiPipe {
             return this.schema;
         }
         if (this.type) {
-            return JoiPipe_1.getTypeSchema(this.type, { forced: true, group: this.pipeOpts.group });
+            return JoiPipe_1.getTypeSchema(this.type, { forced: true, group: (_a = this.options.pipeOpts) === null || _a === void 0 ? void 0 : _a.group });
         }
         if (metadata.metatype) {
-            return JoiPipe_1.getTypeSchema(metadata.metatype, { group: this.pipeOpts.group });
+            return JoiPipe_1.getTypeSchema(metadata.metatype, { group: (_b = this.options.pipeOpts) === null || _b === void 0 ? void 0 : _b.group });
         }
         return undefined;
     }
@@ -161,7 +188,8 @@ JoiPipe.typeSchemaMap = new Map();
 JoiPipe = JoiPipe_1 = __decorate([
     common_1.Injectable({ scope: common_1.Scope.REQUEST }),
     __param(0, common_1.Inject(core_1.REQUEST)),
-    __param(1, common_1.Optional()), __param(1, common_1.Inject(defs_1.JOIPIPE_OPTIONS)),
+    __param(1, common_1.Optional()),
+    __param(1, common_1.Inject(defs_1.JOIPIPE_OPTIONS)),
     __metadata("design:paramtypes", [Object, Object])
 ], JoiPipe);
 exports.JoiPipe = JoiPipe;

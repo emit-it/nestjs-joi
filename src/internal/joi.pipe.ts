@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/unified-signatures */ // Unified signatures are harder to read
 
 import {
@@ -10,30 +11,81 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { REQUEST } from '@nestjs/core';
+import * as acceptLanguageParser from 'accept-language-parser';
+import { FastifyRequest } from 'fastify';
 import * as Joi from 'joi';
 import { getTypeSchema, JoiValidationGroup } from 'joi-class-decorators';
-import { SetRequired } from 'type-fest';
 
 import { Constructor, JOIPIPE_OPTIONS, JoiValidationGroups } from './defs';
+import { JoiPipeOptions } from './joi-pipe.module';
 
-export interface JoiPipeOptions {
-  group?: JoiValidationGroup;
-  usePipeValidationException?: boolean;
-}
-type ValidatedJoiPipeOptions = SetRequired<JoiPipeOptions, 'usePipeValidationException'>;
-const DEFAULT_JOI_PIPE_OPTS: ValidatedJoiPipeOptions = {
-  group: undefined,
-  usePipeValidationException: false,
+const DEFAULT_JOI_PIPE_OPTS: JoiPipeOptions = {
+  pipeOpts: {
+    group: undefined,
+  },
+  validationOpts: {
+    abortEarly: false,
+    allowUnknown: false,
+    stripUnknown: false,
+    errors: {
+      label: undefined,
+    },
+  },
+  message: 'Validation failed',
+  transformErrors: errorItems => {
+    const errorObjects: any = {};
+
+    for (const errorItem of errorItems) {
+      if (!errorItem.context?.key || !errorItem.context?.label) {
+        // continue;
+      }
+
+      const key = errorItem.context?.label || errorItem.context?.key || '_no-key';
+
+      if (errorObjects[key] && errorObjects[key].messages) {
+        errorObjects[key].messages.push({
+          message: errorItem.message,
+          type: errorItem.type,
+        });
+        continue;
+      }
+
+      errorObjects[key] = {};
+      errorObjects[key].messages = [
+        {
+          message: errorItem.message,
+          type: errorItem.type,
+        },
+      ];
+      errorObjects[key].key = errorItem.context?.key;
+      errorObjects[key].label = errorItem.context?.label;
+      errorObjects[key].value = errorItem.context?.value;
+    }
+
+    return errorObjects;
+
+    // FIXME: Below code is simpler and could be used too
+    /* return errorItems.map(errorItem => {
+      if (!errorItem.context?.key || errorItem.context?.label) {
+        return errorItem;
+      }
+
+      return {
+        message: errorItem.message,
+        type: errorItem.type,
+        key: errorItem.context.key,
+        label: errorItem.context?.label,
+        value: errorItem.context?.value,
+      }
+    }) */
+  },
 };
-const JOI_PIPE_OPTS_KEYS = Object.keys(DEFAULT_JOI_PIPE_OPTS);
 
-const DEFAULT_JOI_OPTS: Joi.ValidationOptions = {
-  abortEarly: false,
-  allowUnknown: false,
-  stripUnknown: true,
-};
+const JOI_PIPE_OPTS_KEYS = Object.keys({ ...DEFAULT_JOI_PIPE_OPTS, translations: {} });
 
-// TODO Check if there is a more efficient/reliable test for generic request objects
+const DEFAULT_JOI_VALIDATION_OPTS: Joi.ValidationOptions =
+  DEFAULT_JOI_PIPE_OPTS.validationOpts as Joi.ValidationOptions;
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function isHttpRequest(req: any): req is { method: string } {
   return req && 'method' in req;
@@ -48,15 +100,15 @@ export class JoiPipe implements PipeTransform {
   private readonly schema?: Joi.Schema;
   private readonly type?: Constructor;
   private readonly method?: string;
-  private readonly pipeOpts: ValidatedJoiPipeOptions;
+  private readonly options: JoiPipeOptions;
 
   constructor();
-  constructor(pipeOpts?: JoiPipeOptions);
-  constructor(type: Constructor, pipeOpts?: JoiPipeOptions);
-  constructor(schema: Joi.Schema, pipeOpts?: JoiPipeOptions);
+  constructor(options?: JoiPipeOptions);
+  constructor(type: Constructor, options?: JoiPipeOptions);
+  constructor(schema: Joi.Schema, options?: JoiPipeOptions);
   constructor(
     @Inject(REQUEST) private readonly arg?: unknown,
-    @Optional() @Inject(JOIPIPE_OPTIONS) pipeOpts?: JoiPipeOptions,
+    @Optional() @Inject(JOIPIPE_OPTIONS) options?: JoiPipeOptions,
   ) {
     if (arg) {
       // Test for an actual request object, which indicates we're in "injected" mode.
@@ -80,17 +132,19 @@ export class JoiPipe implements PipeTransform {
           this.type = arg as Constructor;
         } else {
           // Options passed as first parameter
-          pipeOpts = arg as JoiPipeOptions;
+          options = arg as JoiPipeOptions;
         }
       }
     } else {
       // Called without arguments, do nothing
     }
 
-    this.pipeOpts = this.parseOptions(pipeOpts);
+    this.options = this.parseOptions(options);
   }
 
   transform(payload: unknown, metadata: ArgumentMetadata): unknown {
+    const req = this.arg as FastifyRequest;
+    const language = acceptLanguageParser.parse(req.headers['accept-language'] || 'en')[0].code;
     const schema = this.getSchema(metadata);
 
     if (!schema) {
@@ -99,41 +153,47 @@ export class JoiPipe implements PipeTransform {
       return payload;
     }
 
-    return JoiPipe.validate(payload, schema /* metadata */);
+    return this.validate(payload, schema, language /* metadata */);
   }
 
   // Called "validate" and NOT "transform", because that would make it match
   // the interface of a pipe INSTANCE and prevent NestJS from recognizing it as
   // a class constructor instead of an instance.
-  private static validate<T>(
+  private validate<T>(
     payload: unknown,
     schema: Joi.Schema,
+    language: string,
     /* istanbul ignore next */
     // metadata: ArgumentMetadata = { type: 'custom' },
   ): T {
-    const { error, value } = schema.validate(
-      payload,
-      // This will always get overridden by whatever options have been specified
-      // on the schema itself
-      DEFAULT_JOI_OPTS,
-    );
+    const { error, value } = schema.validate(payload, {
+      ...DEFAULT_JOI_VALIDATION_OPTS,
+      // Allows overriding the default Joi schema validation options
+      ...this.options.validationOpts,
+      ...{
+        errors: {
+          ...DEFAULT_JOI_VALIDATION_OPTS.errors,
+          language,
+          ...this.options.validationOpts?.errors,
+        },
+      },
+      messages: this.options.translations?.[language],
+    });
 
     if (error) {
       // Fixes #4
       if (Joi.isError(error)) {
-        throw new UnprocessableEntityException({
+        const errObject = {
           statusCode: 422,
-          message: 'Validation failed',
-          error: error.details.map(errorItem => {
-            return {
-              message: errorItem.message,
-              type: errorItem.type,
-              key: errorItem.context?.key,
-              label: errorItem.context?.label,
-              value: errorItem.context?.value,
-            };
-          }),
-        });
+          message: this.options.message,
+          errors:
+            this.options.transformErrors?.(error.details) ||
+            DEFAULT_JOI_PIPE_OPTS.transformErrors?.(error.details),
+        };
+
+        // console.error(errObject)
+
+        throw new UnprocessableEntityException(errObject);
       } else {
         // If error is not a validation error, it is probably a custom error thrown by the schema.
         // Pass it through to allow it to be caught by custom error handlers.
@@ -148,42 +208,36 @@ export class JoiPipe implements PipeTransform {
   /**
    * Efficient validation of pipeOpts
    *
-   * @param pipeOpts Pipe options as passed in the constructor
+   * @param options Pipe options as passed in the constructor
    * @returns Validated options with default values applied
    */
-  private parseOptions(pipeOpts?: JoiPipeOptions): ValidatedJoiPipeOptions {
+  private parseOptions(options?: JoiPipeOptions): JoiPipeOptions {
     // Pass type arguments to force type validation of the function arguments.
-    pipeOpts = Object.assign<JoiPipeOptions, JoiPipeOptions>(
+    options = Object.assign<JoiPipeOptions, JoiPipeOptions>(
       {
         ...DEFAULT_JOI_PIPE_OPTS,
       },
-      pipeOpts || {},
+      options || {},
     );
 
     const errors: string[] = [];
 
-    const unknownKeys = Object.keys(pipeOpts).filter(k => !JOI_PIPE_OPTS_KEYS.includes(k));
+    const unknownKeys = Object.keys(options).filter(k => !JOI_PIPE_OPTS_KEYS.includes(k));
     if (unknownKeys.length) {
       errors.push(`Unknown configuration keys: ${unknownKeys.join(', ')}`);
     }
     if (
-      pipeOpts.group &&
-      !(typeof pipeOpts.group === 'string' || typeof pipeOpts.group === 'symbol')
+      options.pipeOpts?.group &&
+      !(typeof options.pipeOpts?.group === 'string' || typeof options.pipeOpts?.group === 'symbol')
     ) {
       errors.push(`'group' must be a string or symbol`);
-    }
-    if (
-      Object.prototype.hasOwnProperty.call(pipeOpts, 'usePipeValidationException') &&
-      !(typeof pipeOpts.usePipeValidationException === 'boolean')
-    ) {
-      errors.push(`'usePipeValidationException' must be a boolean`);
     }
 
     if (errors.length) {
       throw new Error(`Invalid JoiPipeOptions:\n${errors.map(x => `- ${x}`).join('\n')}`);
     }
 
-    return pipeOpts as ValidatedJoiPipeOptions;
+    return options as JoiPipeOptions;
   }
 
   /**
@@ -213,12 +267,15 @@ export class JoiPipe implements PipeTransform {
     // Prefer a static model, if specified
     if (this.type) {
       // Don't return "no schema" (undefined) if a type was explicitely specified
-      return JoiPipe.getTypeSchema(this.type, { forced: true, group: this.pipeOpts.group });
+      return JoiPipe.getTypeSchema(this.type, {
+        forced: true,
+        group: this.options.pipeOpts?.group,
+      });
     }
 
     // Determine the schema from the passed model
     if (metadata.metatype) {
-      return JoiPipe.getTypeSchema(metadata.metatype, { group: this.pipeOpts.group });
+      return JoiPipe.getTypeSchema(metadata.metatype, { group: this.options.pipeOpts?.group });
     }
 
     return undefined;
