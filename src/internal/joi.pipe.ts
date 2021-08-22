@@ -159,14 +159,14 @@ export class JoiPipe implements PipeTransform {
   // Called "validate" and NOT "transform", because that would make it match
   // the interface of a pipe INSTANCE and prevent NestJS from recognizing it as
   // a class constructor instead of an instance.
-  private validate<T>(
+  private async validate<T>(
     payload: unknown,
     schema: Joi.Schema,
     language: string,
     /* istanbul ignore next */
     // metadata: ArgumentMetadata = { type: 'custom' },
-  ): T {
-    const { error, value } = schema.validate(payload, {
+  ): Promise<T> {
+    const { error, value } = await schema.validateAsync(payload, {
       ...DEFAULT_JOI_VALIDATION_OPTS,
       // Allows overriding the default Joi schema validation options
       ...this.options.validationOpts,
