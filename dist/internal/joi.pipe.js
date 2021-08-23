@@ -11,6 +11,15 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
 var JoiPipe_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.JoiPipe = void 0;
@@ -33,13 +42,11 @@ const DEFAULT_JOI_PIPE_OPTS = {
         },
     },
     message: 'Validation failed',
-    transformErrors: errorItems => {
-        var _a, _b, _c, _d, _e, _f, _g;
+    transformErrors: (errorItems) => {
+        var _a, _b, _c, _d, _e;
         const errorObjects = {};
         for (const errorItem of errorItems) {
-            if (!((_a = errorItem.context) === null || _a === void 0 ? void 0 : _a.key) || !((_b = errorItem.context) === null || _b === void 0 ? void 0 : _b.label)) {
-            }
-            const key = ((_c = errorItem.context) === null || _c === void 0 ? void 0 : _c.label) || ((_d = errorItem.context) === null || _d === void 0 ? void 0 : _d.key) || '_no-key';
+            const key = ((_a = errorItem.context) === null || _a === void 0 ? void 0 : _a.label) || ((_b = errorItem.context) === null || _b === void 0 ? void 0 : _b.key) || '_no-key';
             if (errorObjects[key] && errorObjects[key].messages) {
                 errorObjects[key].messages.push({
                     message: errorItem.message,
@@ -54,9 +61,9 @@ const DEFAULT_JOI_PIPE_OPTS = {
                     type: errorItem.type,
                 },
             ];
-            errorObjects[key].key = (_e = errorItem.context) === null || _e === void 0 ? void 0 : _e.key;
-            errorObjects[key].label = (_f = errorItem.context) === null || _f === void 0 ? void 0 : _f.label;
-            errorObjects[key].value = (_g = errorItem.context) === null || _g === void 0 ? void 0 : _g.value;
+            errorObjects[key].key = (_c = errorItem.context) === null || _c === void 0 ? void 0 : _c.key;
+            errorObjects[key].label = (_d = errorItem.context) === null || _d === void 0 ? void 0 : _d.label;
+            errorObjects[key].value = (_e = errorItem.context) === null || _e === void 0 ? void 0 : _e.value;
         }
         return errorObjects;
     },
@@ -95,34 +102,40 @@ let JoiPipe = JoiPipe_1 = class JoiPipe {
         this.options = this.parseOptions(options);
     }
     transform(payload, metadata) {
-        const req = this.arg;
-        const language = acceptLanguageParser.parse(req.headers['accept-language'] || 'en')[0].code;
-        const schema = this.getSchema(metadata);
-        if (!schema) {
-            return payload;
-        }
-        return this.validate(payload, schema, language);
+        return __awaiter(this, void 0, void 0, function* () {
+            const req = this.arg;
+            const language = acceptLanguageParser.parse(req.headers['accept-language'] || 'en')[0].code;
+            const schema = this.getSchema(metadata);
+            if (!schema) {
+                return payload;
+            }
+            return this.validate(payload, schema, language);
+        });
     }
     validate(payload, schema, language) {
         var _a, _b, _c, _d, _e;
-        const { error, value } = schema.validate(payload, Object.assign(Object.assign(Object.assign(Object.assign({}, DEFAULT_JOI_VALIDATION_OPTS), this.options.validationOpts), {
-            errors: Object.assign(Object.assign(Object.assign({}, DEFAULT_JOI_VALIDATION_OPTS.errors), { language }), (_a = this.options.validationOpts) === null || _a === void 0 ? void 0 : _a.errors),
-        }), { messages: (_b = this.options.translations) === null || _b === void 0 ? void 0 : _b[language] }));
-        if (error) {
-            if (Joi.isError(error)) {
-                const errObject = {
-                    statusCode: 422,
-                    message: this.options.message,
-                    errors: ((_d = (_c = this.options).transformErrors) === null || _d === void 0 ? void 0 : _d.call(_c, error.details)) ||
-                        ((_e = DEFAULT_JOI_PIPE_OPTS.transformErrors) === null || _e === void 0 ? void 0 : _e.call(DEFAULT_JOI_PIPE_OPTS, error.details)),
-                };
-                throw new common_1.UnprocessableEntityException(errObject);
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const value = yield schema.validateAsync(payload, Object.assign(Object.assign(Object.assign(Object.assign({}, DEFAULT_JOI_VALIDATION_OPTS), this.options.validationOpts), {
+                    errors: Object.assign(Object.assign(Object.assign({}, DEFAULT_JOI_VALIDATION_OPTS.errors), { language }), (_a = this.options.validationOpts) === null || _a === void 0 ? void 0 : _a.errors),
+                }), { messages: (_b = this.options.translations) === null || _b === void 0 ? void 0 : _b[language] }));
+                return value;
             }
-            else {
-                throw error;
+            catch (error) {
+                if (Joi.isError(error)) {
+                    const errObject = {
+                        statusCode: 422,
+                        message: this.options.message,
+                        errors: ((_d = (_c = this.options).transformErrors) === null || _d === void 0 ? void 0 : _d.call(_c, error.details)) ||
+                            ((_e = DEFAULT_JOI_PIPE_OPTS.transformErrors) === null || _e === void 0 ? void 0 : _e.call(DEFAULT_JOI_PIPE_OPTS, error.details)),
+                    };
+                    throw new common_1.UnprocessableEntityException(errObject);
+                }
+                else {
+                    throw error;
+                }
             }
-        }
-        return value;
+        });
     }
     parseOptions(options) {
         var _a, _b, _c;

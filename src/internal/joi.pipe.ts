@@ -36,10 +36,6 @@ const DEFAULT_JOI_PIPE_OPTS: JoiPipeOptions = {
     const errorObjects: any = {};
 
     for (const errorItem of errorItems) {
-      if (!errorItem.context?.key || !errorItem.context?.label) {
-        // continue;
-      }
-
       const key = errorItem.context?.label || errorItem.context?.key || '_no-key';
 
       if (errorObjects[key] && errorObjects[key].messages) {
@@ -142,7 +138,7 @@ export class JoiPipe implements PipeTransform {
     this.options = this.parseOptions(options);
   }
 
-  transform(payload: unknown, metadata: ArgumentMetadata): unknown {
+  async transform(payload: unknown, metadata: ArgumentMetadata): Promise<unknown> {
     const req = this.arg as FastifyRequest;
     const language = acceptLanguageParser.parse(req.headers['accept-language'] || 'en')[0].code;
     const schema = this.getSchema(metadata);
@@ -159,29 +155,30 @@ export class JoiPipe implements PipeTransform {
   // Called "validate" and NOT "transform", because that would make it match
   // the interface of a pipe INSTANCE and prevent NestJS from recognizing it as
   // a class constructor instead of an instance.
-  private validate<T>(
+  private async validate<T>(
     payload: unknown,
     schema: Joi.Schema,
     language: string,
     /* istanbul ignore next */
     // metadata: ArgumentMetadata = { type: 'custom' },
-  ): T {
-    const { error, value } = schema.validate(payload, {
-      ...DEFAULT_JOI_VALIDATION_OPTS,
-      // Allows overriding the default Joi schema validation options
-      ...this.options.validationOpts,
-      ...{
-        errors: {
-          ...DEFAULT_JOI_VALIDATION_OPTS.errors,
-          language,
-          ...this.options.validationOpts?.errors,
+  ): Promise<T> {
+    try {
+      const value = await schema.validateAsync(payload, {
+        ...DEFAULT_JOI_VALIDATION_OPTS,
+        // Allows overriding the default Joi schema validation options
+        ...this.options.validationOpts,
+        ...{
+          errors: {
+            ...DEFAULT_JOI_VALIDATION_OPTS.errors,
+            language,
+            ...this.options.validationOpts?.errors,
+          },
         },
-      },
-      messages: this.options.translations?.[language],
-    });
+        messages: this.options.translations?.[language],
+      });
 
-    if (error) {
-      // Fixes #4
+      return value as T;
+    } catch (error) {
       if (Joi.isError(error)) {
         const errObject = {
           statusCode: 422,
@@ -200,9 +197,6 @@ export class JoiPipe implements PipeTransform {
         throw error;
       }
     }
-
-    // Everything is fine
-    return value as T;
   }
 
   /**

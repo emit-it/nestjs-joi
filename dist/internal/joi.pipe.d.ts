@@ -12,7 +12,7 @@ export declare class JoiPipe implements PipeTransform {
     constructor(options?: JoiPipeOptions);
     constructor(type: Constructor, options?: JoiPipeOptions);
     constructor(schema: Joi.Schema, options?: JoiPipeOptions);
-    transform(payload: unknown, metadata: ArgumentMetadata): unknown;
+    transform(payload: unknown, metadata: ArgumentMetadata): Promise<unknown>;
     private validate;
     private parseOptions;
     private getSchema;
