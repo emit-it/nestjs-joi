@@ -42,13 +42,11 @@ const DEFAULT_JOI_PIPE_OPTS = {
         },
     },
     message: 'Validation failed',
-    transformErrors: errorItems => {
-        var _a, _b, _c, _d, _e, _f, _g;
+    transformErrors: (errorItems) => {
+        var _a, _b, _c, _d, _e;
         const errorObjects = {};
         for (const errorItem of errorItems) {
-            if (!((_a = errorItem.context) === null || _a === void 0 ? void 0 : _a.key) || !((_b = errorItem.context) === null || _b === void 0 ? void 0 : _b.label)) {
-            }
-            const key = ((_c = errorItem.context) === null || _c === void 0 ? void 0 : _c.label) || ((_d = errorItem.context) === null || _d === void 0 ? void 0 : _d.key) || '_no-key';
+            const key = ((_a = errorItem.context) === null || _a === void 0 ? void 0 : _a.label) || ((_b = errorItem.context) === null || _b === void 0 ? void 0 : _b.key) || '_no-key';
             if (errorObjects[key] && errorObjects[key].messages) {
                 errorObjects[key].messages.push({
                     message: errorItem.message,
@@ -63,9 +61,9 @@ const DEFAULT_JOI_PIPE_OPTS = {
                     type: errorItem.type,
                 },
             ];
-            errorObjects[key].key = (_e = errorItem.context) === null || _e === void 0 ? void 0 : _e.key;
-            errorObjects[key].label = (_f = errorItem.context) === null || _f === void 0 ? void 0 : _f.label;
-            errorObjects[key].value = (_g = errorItem.context) === null || _g === void 0 ? void 0 : _g.value;
+            errorObjects[key].key = (_c = errorItem.context) === null || _c === void 0 ? void 0 : _c.key;
+            errorObjects[key].label = (_d = errorItem.context) === null || _d === void 0 ? void 0 : _d.label;
+            errorObjects[key].value = (_e = errorItem.context) === null || _e === void 0 ? void 0 : _e.value;
         }
         return errorObjects;
     },
@@ -104,21 +102,26 @@ let JoiPipe = JoiPipe_1 = class JoiPipe {
         this.options = this.parseOptions(options);
     }
     transform(payload, metadata) {
-        const req = this.arg;
-        const language = acceptLanguageParser.parse(req.headers['accept-language'] || 'en')[0].code;
-        const schema = this.getSchema(metadata);
-        if (!schema) {
-            return payload;
-        }
-        return this.validate(payload, schema, language);
+        return __awaiter(this, void 0, void 0, function* () {
+            const req = this.arg;
+            const language = acceptLanguageParser.parse(req.headers['accept-language'] || 'en')[0].code;
+            const schema = this.getSchema(metadata);
+            if (!schema) {
+                return payload;
+            }
+            return this.validate(payload, schema, language);
+        });
     }
     validate(payload, schema, language) {
         var _a, _b, _c, _d, _e;
         return __awaiter(this, void 0, void 0, function* () {
-            const { error, value } = yield schema.validateAsync(payload, Object.assign(Object.assign(Object.assign(Object.assign({}, DEFAULT_JOI_VALIDATION_OPTS), this.options.validationOpts), {
-                errors: Object.assign(Object.assign(Object.assign({}, DEFAULT_JOI_VALIDATION_OPTS.errors), { language }), (_a = this.options.validationOpts) === null || _a === void 0 ? void 0 : _a.errors),
-            }), { messages: (_b = this.options.translations) === null || _b === void 0 ? void 0 : _b[language] }));
-            if (error) {
+            try {
+                const value = yield schema.validateAsync(payload, Object.assign(Object.assign(Object.assign(Object.assign({}, DEFAULT_JOI_VALIDATION_OPTS), this.options.validationOpts), {
+                    errors: Object.assign(Object.assign(Object.assign({}, DEFAULT_JOI_VALIDATION_OPTS.errors), { language }), (_a = this.options.validationOpts) === null || _a === void 0 ? void 0 : _a.errors),
+                }), { messages: (_b = this.options.translations) === null || _b === void 0 ? void 0 : _b[language] }));
+                return value;
+            }
+            catch (error) {
                 if (Joi.isError(error)) {
                     const errObject = {
                         statusCode: 422,
@@ -132,7 +135,6 @@ let JoiPipe = JoiPipe_1 = class JoiPipe {
                     throw error;
                 }
             }
-            return value;
         });
     }
     parseOptions(options) {
