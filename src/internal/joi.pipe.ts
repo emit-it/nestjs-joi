@@ -15,6 +15,7 @@ import * as acceptLanguageParser from 'accept-language-parser';
 import { FastifyRequest } from 'fastify';
 import * as Joi from 'joi';
 import { getTypeSchema, JoiValidationGroup } from 'joi-class-decorators';
+import * as _ from 'lodash';
 
 import { Constructor, JOIPIPE_OPTIONS, JoiValidationGroups } from './defs';
 import { JoiPipeOptions } from './joi-pipe.module';
@@ -36,15 +37,22 @@ const DEFAULT_JOI_PIPE_OPTS: JoiPipeOptions = {
     const errorObjects: any = {};
 
     for (const errorItem of errorItems) {
-      const key = errorItem.context?.label || errorItem.context?.key || '_no-key';
+      // const key = errorItem.context?.label || errorItem.context?.key || '_no-key';
 
-      if (errorObjects[key] && errorObjects[key].messages) {
+      // TODO: https://lodash.com/docs/4.17.15#hasIn
+      _.set(errorObjects, errorItem.path, {
+        message: errorItem.message,
+      });
+
+      /* if (errorObjects[key] && errorObjects[key].messages) {
         errorObjects[key].messages.push({
           message: errorItem.message,
           type: errorItem.type,
         });
         continue;
       }
+
+      
 
       errorObjects[key] = {};
       errorObjects[key].messages = [
@@ -55,7 +63,7 @@ const DEFAULT_JOI_PIPE_OPTS: JoiPipeOptions = {
       ];
       errorObjects[key].key = errorItem.context?.key;
       errorObjects[key].label = errorItem.context?.label;
-      errorObjects[key].value = errorItem.context?.value;
+      errorObjects[key].value = errorItem.context?.value; */
     }
 
     return errorObjects;
@@ -188,7 +196,8 @@ export class JoiPipe implements PipeTransform {
             DEFAULT_JOI_PIPE_OPTS.transformErrors?.(error.details),
         };
 
-        // console.error(errObject)
+        // eslint-disable-next-line no-console
+        console.error(errObject);
 
         throw new UnprocessableEntityException(errObject);
       } else {
