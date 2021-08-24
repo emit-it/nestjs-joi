@@ -15,6 +15,7 @@ import * as acceptLanguageParser from 'accept-language-parser';
 import { FastifyRequest } from 'fastify';
 import * as Joi from 'joi';
 import { getTypeSchema, JoiValidationGroup } from 'joi-class-decorators';
+import { get, hasIn, set } from 'lodash';
 
 import { Constructor, JOIPIPE_OPTIONS, JoiValidationGroups } from './defs';
 import { JoiPipeOptions } from './joi-pipe.module';
@@ -36,44 +37,40 @@ const DEFAULT_JOI_PIPE_OPTS: JoiPipeOptions = {
     const errorObjects: any = {};
 
     for (const errorItem of errorItems) {
-      const key = errorItem.context?.label || errorItem.context?.key || '_no-key';
+      const path = errorItem.path;
 
-      if (errorObjects[key] && errorObjects[key].messages) {
-        errorObjects[key].messages.push({
-          message: errorItem.message,
-          type: errorItem.type,
+      // Retrieves nested messages if object with given path already exists
+      if (hasIn(errorObjects, [...path])) {
+        const prevErrorObj = get(errorObjects, [...path]);
+
+        set(errorObjects, path, {
+          ...prevErrorObj,
+          messages: [
+            ...prevErrorObj.messages,
+            {
+              message: errorItem.message,
+              type: errorItem.type,
+            },
+          ],
         });
+
         continue;
       }
 
-      errorObjects[key] = {};
-      errorObjects[key].messages = [
-        {
-          message: errorItem.message,
-          type: errorItem.type,
-        },
-      ];
-      errorObjects[key].key = errorItem.context?.key;
-      errorObjects[key].label = errorItem.context?.label;
-      errorObjects[key].value = errorItem.context?.value;
+      set(errorObjects, path, {
+        messages: [
+          {
+            message: errorItem.message,
+            type: errorItem.type,
+          },
+        ],
+        key: errorItem.context?.key,
+        label: errorItem.context?.label,
+        value: errorItem.context?.value,
+      });
     }
 
     return errorObjects;
-
-    // FIXME: Below code is simpler and could be used too
-    /* return errorItems.map(errorItem => {
-      if (!errorItem.context?.key || errorItem.context?.label) {
-        return errorItem;
-      }
-
-      return {
-        message: errorItem.message,
-        type: errorItem.type,
-        key: errorItem.context.key,
-        label: errorItem.context?.label,
-        value: errorItem.context?.value,
-      }
-    }) */
   },
 };
 
@@ -188,7 +185,8 @@ export class JoiPipe implements PipeTransform {
             DEFAULT_JOI_PIPE_OPTS.transformErrors?.(error.details),
         };
 
-        // console.error(errObject)
+        // eslint-disable-next-line no-console
+        console.error(errObject);
 
         throw new UnprocessableEntityException(errObject);
       } else {
