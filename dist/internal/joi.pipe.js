@@ -55,7 +55,7 @@ const DEFAULT_JOI_PIPE_OPTS = {
                         {
                             message: errorItem.message,
                             type: errorItem.type,
-                        }
+                        },
                     ] }));
                 continue;
             }
@@ -64,7 +64,7 @@ const DEFAULT_JOI_PIPE_OPTS = {
                     {
                         message: errorItem.message,
                         type: errorItem.type,
-                    }
+                    },
                 ],
                 key: (_a = errorItem.context) === null || _a === void 0 ? void 0 : _a.key,
                 label: (_b = errorItem.context) === null || _b === void 0 ? void 0 : _b.label,
@@ -135,7 +135,6 @@ let JoiPipe = JoiPipe_1 = class JoiPipe {
                         errors: ((_d = (_c = this.options).transformErrors) === null || _d === void 0 ? void 0 : _d.call(_c, error.details)) ||
                             ((_e = DEFAULT_JOI_PIPE_OPTS.transformErrors) === null || _e === void 0 ? void 0 : _e.call(DEFAULT_JOI_PIPE_OPTS, error.details)),
                     };
-                    console.error(errObject);
                     throw new common_1.UnprocessableEntityException(errObject);
                 }
                 else {
