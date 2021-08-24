@@ -28,6 +28,7 @@ const core_1 = require("@nestjs/core");
 const acceptLanguageParser = require("accept-language-parser");
 const Joi = require("joi");
 const joi_class_decorators_1 = require("joi-class-decorators");
+const lodash_1 = require("lodash");
 const defs_1 = require("./defs");
 const DEFAULT_JOI_PIPE_OPTS = {
     pipeOpts: {
@@ -42,28 +43,33 @@ const DEFAULT_JOI_PIPE_OPTS = {
         },
     },
     message: 'Validation failed',
-    transformErrors: (errorItems) => {
-        var _a, _b, _c, _d, _e;
+    transformErrors: errorItems => {
+        var _a, _b, _c;
         const errorObjects = {};
         for (const errorItem of errorItems) {
-            const key = ((_a = errorItem.context) === null || _a === void 0 ? void 0 : _a.label) || ((_b = errorItem.context) === null || _b === void 0 ? void 0 : _b.key) || '_no-key';
-            if (errorObjects[key] && errorObjects[key].messages) {
-                errorObjects[key].messages.push({
-                    message: errorItem.message,
-                    type: errorItem.type,
-                });
+            const path = errorItem.path;
+            if (lodash_1.hasIn(errorObjects, [...path])) {
+                const prevErrorObj = lodash_1.get(errorObjects, [...path]);
+                lodash_1.set(errorObjects, path, Object.assign(Object.assign({}, prevErrorObj), { messages: [
+                        ...prevErrorObj.messages,
+                        {
+                            message: errorItem.message,
+                            type: errorItem.type,
+                        }
+                    ] }));
                 continue;
             }
-            errorObjects[key] = {};
-            errorObjects[key].messages = [
-                {
-                    message: errorItem.message,
-                    type: errorItem.type,
-                },
-            ];
-            errorObjects[key].key = (_c = errorItem.context) === null || _c === void 0 ? void 0 : _c.key;
-            errorObjects[key].label = (_d = errorItem.context) === null || _d === void 0 ? void 0 : _d.label;
-            errorObjects[key].value = (_e = errorItem.context) === null || _e === void 0 ? void 0 : _e.value;
+            lodash_1.set(errorObjects, path, {
+                messages: [
+                    {
+                        message: errorItem.message,
+                        type: errorItem.type,
+                    }
+                ],
+                key: (_a = errorItem.context) === null || _a === void 0 ? void 0 : _a.key,
+                label: (_b = errorItem.context) === null || _b === void 0 ? void 0 : _b.label,
+                value: (_c = errorItem.context) === null || _c === void 0 ? void 0 : _c.value,
+            });
         }
         return errorObjects;
     },
@@ -129,6 +135,7 @@ let JoiPipe = JoiPipe_1 = class JoiPipe {
                         errors: ((_d = (_c = this.options).transformErrors) === null || _d === void 0 ? void 0 : _d.call(_c, error.details)) ||
                             ((_e = DEFAULT_JOI_PIPE_OPTS.transformErrors) === null || _e === void 0 ? void 0 : _e.call(DEFAULT_JOI_PIPE_OPTS, error.details)),
                     };
+                    console.error(errObject);
                     throw new common_1.UnprocessableEntityException(errObject);
                 }
                 else {

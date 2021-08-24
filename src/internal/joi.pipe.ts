@@ -15,7 +15,7 @@ import * as acceptLanguageParser from 'accept-language-parser';
 import { FastifyRequest } from 'fastify';
 import * as Joi from 'joi';
 import { getTypeSchema, JoiValidationGroup } from 'joi-class-decorators';
-import * as _ from 'lodash';
+import { get, hasIn, set } from 'lodash';
 
 import { Constructor, JOIPIPE_OPTIONS, JoiValidationGroups } from './defs';
 import { JoiPipeOptions } from './joi-pipe.module';
@@ -37,51 +37,40 @@ const DEFAULT_JOI_PIPE_OPTS: JoiPipeOptions = {
     const errorObjects: any = {};
 
     for (const errorItem of errorItems) {
-      // const key = errorItem.context?.label || errorItem.context?.key || '_no-key';
+      const path = errorItem.path;
 
-      // TODO: https://lodash.com/docs/4.17.15#hasIn
-      _.set(errorObjects, errorItem.path, {
-        message: errorItem.message,
-      });
+      // Retrieves nested messages if object with given path already exists
+      if (hasIn(errorObjects, [...path])) {
+        const prevErrorObj = get(errorObjects, [...path]);
 
-      /* if (errorObjects[key] && errorObjects[key].messages) {
-        errorObjects[key].messages.push({
-          message: errorItem.message,
-          type: errorItem.type,
+        set(errorObjects, path, {
+          ...prevErrorObj,
+          messages: [
+            ...prevErrorObj.messages,
+            {
+              message: errorItem.message,
+              type: errorItem.type,
+            },
+          ],
         });
+
         continue;
       }
 
-      
-
-      errorObjects[key] = {};
-      errorObjects[key].messages = [
-        {
-          message: errorItem.message,
-          type: errorItem.type,
-        },
-      ];
-      errorObjects[key].key = errorItem.context?.key;
-      errorObjects[key].label = errorItem.context?.label;
-      errorObjects[key].value = errorItem.context?.value; */
+      set(errorObjects, path, {
+        messages: [
+          {
+            message: errorItem.message,
+            type: errorItem.type,
+          },
+        ],
+        key: errorItem.context?.key,
+        label: errorItem.context?.label,
+        value: errorItem.context?.value,
+      });
     }
 
     return errorObjects;
-
-    // FIXME: Below code is simpler and could be used too
-    /* return errorItems.map(errorItem => {
-      if (!errorItem.context?.key || errorItem.context?.label) {
-        return errorItem;
-      }
-
-      return {
-        message: errorItem.message,
-        type: errorItem.type,
-        key: errorItem.context.key,
-        label: errorItem.context?.label,
-        value: errorItem.context?.value,
-      }
-    }) */
   },
 };
 
