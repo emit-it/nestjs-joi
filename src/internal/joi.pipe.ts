@@ -185,8 +185,7 @@ export class JoiPipe implements PipeTransform {
             DEFAULT_JOI_PIPE_OPTS.transformErrors?.(error.details),
         };
 
-        // eslint-disable-next-line no-console
-        console.error(errObject);
+        // console.error(errObject);
 
         throw new UnprocessableEntityException(errObject);
       } else {
