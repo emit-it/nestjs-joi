@@ -47,6 +47,7 @@
     "@nestjs/graphql": "^9.1.2",
     "@nestjs/platform-express": "^8.2.3",
     "@nestjs/testing": "^8.2.3",
+    "@types/accept-language-parser": "^1.5.3",
     "@types/eslint": "^7.2.6",
     "@types/jest": "^26.0.14",
     "@types/lodash": "^4.14.161",
