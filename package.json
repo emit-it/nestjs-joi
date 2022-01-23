@@ -33,7 +33,7 @@
   "typings": "dist/index.d.ts",
   "dependencies": {
     "accept-language-parser": "^1.5.0",
-    "joi-class-decorators": "^1.0.2",
+    "joi-class-decorators": "^1.0.3",
     "lodash": "^4.17.21"
   },
   "devDependencies": {
